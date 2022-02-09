@@ -12,7 +12,7 @@
 #include <string.h>
 #include <sqlite3.h>
 
-//print SQL request 
+//print SQL request
 int SQLiteCallbackFunctionPrint(void *data, int argc,  char **argv, char **columnName){
     int i;
 	for (i=0; i< argc; i++)

@@ -27,4 +27,3 @@ extern int rowWithSQLiteRequest(char *SQL, char *DataBase, char ***row);
 #ifdef __cplusplus
 }  /* end of the 'extern "C"' block */
 #endif
-
