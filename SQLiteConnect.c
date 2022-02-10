@@ -2,7 +2,7 @@
  * File              : SQLiteConnect.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 04.09.2021
- * Last Modified Date: 09.02.2022
+ * Last Modified Date: 10.02.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
@@ -13,6 +13,7 @@
 #include <sqlite3.h>
 
 //print SQL request
+//
 int SQLiteCallbackFunctionPrint(void *data, int argc,  char **argv, char **columnName){
     int i;
 	for (i=0; i< argc; i++)
