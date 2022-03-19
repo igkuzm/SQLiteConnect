@@ -17,8 +17,7 @@ extern "C" {
 
 //execute SQLite SQL STRING for DATABASE
 //DATA - return void in CALLBACK
-int
-sqlite_connect_execute_function(
+int sqlite_connect_execute_function(
 		const char *String, //SQL string to execute 
 		const char *DataBase, //SQLite database filename
 		void *user_data, //pointer to transfer throw callback  
