@@ -2,7 +2,7 @@
  * File              : SQLiteConnect.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 04.09.2021
- * Last Modified Date: 10.02.2022
+ * Last Modified Date: 19.03.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
@@ -12,8 +12,7 @@
 #include <string.h>
 #include "sqlite3.h"
 
-//print SQL request
-//
+//standart callback - print in STDOUT
 int SQLiteCallbackFunctionPrint(void *data, int argc,  char **argv, char **columnName){
     int i;
 	for (i=0; i< argc; i++)
@@ -47,21 +46,21 @@ int SQLiteExecuteFunction(const char *String, const char *DataBase, void *data, 
 	}	
 
 	int count = 0;
+	int num_cols = sqlite3_column_count(stmt); //number of colums
+	char **columnNames = calloc(num_cols, 8); //names of colums
+	if (!columnNames) {
+		perror("columnNames calloc");
+		exit(EXIT_FAILURE);
+	}				
+	
+	char **argv = calloc(BUFSIZ, 8); //values
+	if (!argv) {
+		perror("argv calloc");
+		exit(EXIT_FAILURE);
+	}				
+
 	while (sqlite3_step(stmt) != SQLITE_DONE) {
 		int i;
-		int num_cols = sqlite3_column_count(stmt); //number of colums
-		char **columnNames = calloc(num_cols, 8); //names of colums
-		if (!columnNames) {
-			fprintf(stderr, "ERROR. Cannot allocate memory\n");		
-			return 0;	
-		}				
-		
-		char **argv = calloc(BUFSIZ, 8); //values
-		if (!argv) {
-			fprintf(stderr, "ERROR. Cannot allocate memory\n");		
-			return 0;	
-		}				
-		
 		for (i = 0; i < num_cols; ++i) {
 			if (sqlite3_column_name(stmt, i) != NULL) {
 				columnNames[i] = (char *)sqlite3_column_name(stmt, i);
@@ -73,28 +72,26 @@ int SQLiteExecuteFunction(const char *String, const char *DataBase, void *data, 
 		
 		if (callback) {
 			int c = callback(data, &count, num_cols, argv, columnNames); //run callback
-			//free(columnNames);
-			//free(argv);
-			
 			if (c) { //callback return non zero - stop execution
-				//fprintf(stderr, "SQLiteExecute interupted with code: %d", c);
+				fprintf(stderr, "SQLiteExecute interupted with code: %d", c);
 				if (c == -1) {
 					//stop execution with no return
 					break;
 				}
 				else {
-					//stop execute with restun of callback
-					sqlite3_finalize(stmt);
-					sqlite3_close(db);
-					return c;				
+					//stop execute with return of callback
+					count=c;				
+					break;
 				}
 			}
 		}
 		count++;
 	}
+	//free memory
+	free(columnNames);
+	free(argv);
 
 	sqlite3_finalize(stmt);
-
 	sqlite3_close(db);
 
 	return count;
