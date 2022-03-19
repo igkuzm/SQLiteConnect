@@ -13,7 +13,7 @@
 #include "sqlite3.h"
 
 //standart callback - print in STDOUT
-int SQLiteCallbackFunctionPrint(void *data, int argc,  char **argv, char **columnName){
+int sqlite_callback_print(void *data, int argc,  char **argv, char **columnName){
     int i;
 	for (i=0; i< argc; i++)
 		if (argv[i] != NULL){
@@ -27,7 +27,7 @@ int SQLiteCallbackFunctionPrint(void *data, int argc,  char **argv, char **colum
 }
 
 //return number of rows for SQL request
-int SQLiteExecuteFunction(const char *String, const char *DataBase, void *data,  int (*callback)(void*,int*,int,char**,char**)){
+int sqlite_connect_execute_function(const char *String, const char *DataBase, void *data,  int (*callback)(void*,int*,int,char**,char**)){
 	int err; //error code
 	sqlite3 *db;
 	sqlite3_stmt *stmt;
@@ -97,7 +97,7 @@ int SQLiteExecuteFunction(const char *String, const char *DataBase, void *data, 
 	return count;
 }
 
-int SQLiteCallbackString(void *data, int *count, int argc, char **argv, char **columnNames){
+int sqlite_connect_get_string_callback(void *data, int *count, int argc, char **argv, char **columnNames){
 	char *string=(char*)data;
 	strcpy(string, "");		
 	
@@ -111,7 +111,7 @@ int SQLiteCallbackString(void *data, int *count, int argc, char **argv, char **c
     return -1; //do not call callback again
 }
 
-int SQLiteCallbackRow(void *data, int *count, int argc, char **argv, char **columnNames){
+int sqlite_connect_get_row_callback(void *data, int *count, int argc, char **argv, char **columnNames){
 	char **row=(char**)data;
 	int i;
 	for (i = 0; i < argc; ++i) { //for each column in callback
@@ -138,23 +138,23 @@ int SQLiteCallbackRow(void *data, int *count, int argc, char **argv, char **colu
 
 
 //return one string from SQL request
-char *stringWithSQLiteRequest(char *SQL, char *DataBase){
+char *sqlite_connect_get_string(char *SQL, char *DataBase){
 	char *string = calloc(BUFSIZ, sizeof(char));
 	if (!string) {
 		fprintf(stderr, "ERROR. Cannot allocate memory\n");		
 		return NULL;	
 	}					
-	SQLiteExecuteFunction(SQL, DataBase, string, SQLiteCallbackString);	
+	sqlite_connect_execute_function(SQL, DataBase, string, sqlite_connect_get_string_callback);	
 	return string;
 }
 
 //return count of colums in one row from SQL request
-int rowWithSQLiteRequest(char *SQL, char *DataBase, char ***row){
-	return SQLiteExecuteFunction(SQL, DataBase, &row, SQLiteCallbackRow);	
+int sqlite_connect_get_row(char *SQL, char *DataBase, char ***row){
+	return sqlite_connect_execute_function(SQL, DataBase, &row, sqlite_connect_get_row_callback);	
 }
 
 //execute SQL without callback
-int SQLiteExecute(const char *String, const char *DataBase){
+int sqlite_connect_execute(const char *String, const char *DataBase){
 	
 	const char *filename = DataBase;
 
@@ -170,7 +170,7 @@ int SQLiteExecute(const char *String, const char *DataBase){
 	char *sql = (char *)String;	
 	char *err = NULL; 
 		
-	sqlite3_exec(db, sql, SQLiteCallbackFunctionPrint, 0, &err); 
+	sqlite3_exec(db, sql, sqlite_callback_print, 0, &err); 
 	
 	if (err != NULL){
 		fprintf(stderr, "ERROR SQLExecute: %s\n", err);

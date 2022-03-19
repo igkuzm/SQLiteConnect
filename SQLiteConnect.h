@@ -7,7 +7,7 @@
  */
 
 #ifndef SQLITE_CONNECT
-#define SQLITE_CONNECT value
+#define SQLITE_CONNECT
 
 #include <stdio.h>
 
@@ -17,7 +17,8 @@ extern "C" {
 
 //execute SQLite SQL STRING for DATABASE
 //DATA - return void in CALLBACK
-int SQLiteExecuteFunction(
+int
+sqlite_connect_execute_function(
 		const char *String, //SQL string to execute 
 		const char *DataBase, //SQLite database filename
 		void *user_data, //pointer to transfer throw callback  
@@ -29,13 +30,15 @@ int SQLiteExecuteFunction(
 			char** titles //array of titles of culumns
 		)
 );
-int SQLiteExecute(const char *String, const char *DataBase); //execute without callback
+
+//execute SQL without callback
+int sqlite_connect_execute(const char *String, const char *DataBase);
 
 //returns one String (first row and first column) from SQL Request
-char *stringWithSQLiteRequest(char *SQL, char *DataBase);
+char *sqlite_connect_get_string(char *SQL, char *DataBase);
 
 //return number of colums of sqlrequest with values in row
-int rowWithSQLiteRequest(char *SQL, char *DataBase, char ***row);
+int sqlite_connect_get_row(char *SQL, char *DataBase, char ***row);
 
 #ifdef __cplusplus
 }  /* end of the 'extern "C"' block */
