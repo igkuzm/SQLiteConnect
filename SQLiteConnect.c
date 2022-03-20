@@ -2,7 +2,7 @@
  * File              : SQLiteConnect.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 04.09.2021
- * Last Modified Date: 19.03.2022
+ * Last Modified Date: 20.03.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
@@ -11,6 +11,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sqlite3.h"
+
+//create SQLite database
+int 
+sqlite_connect_create_database(const char *DataBase)
+{
+	sqlite3 *db;
+	int err = sqlite3_open_v2(DataBase, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+	sqlite3_close(db);
+	return err;
+}
 
 //standart callback - print in STDOUT
 int sqlite_callback_print(void *data, int argc,  char **argv, char **columnName){
@@ -45,26 +55,25 @@ int sqlite_connect_execute_function(const char *String, const char *DataBase, vo
 		return 0;
 	}	
 
-	int count = 0;
 	int num_cols = sqlite3_column_count(stmt); //number of colums
-	char **columnNames = calloc(num_cols, 8); //names of colums
-	if (!columnNames) {
-		perror("columnNames calloc");
-		exit(EXIT_FAILURE);
-	}				
+	char *columnNames[num_cols]; //names of colums
 	
-	char **argv = calloc(BUFSIZ, 8); //values
-	if (!argv) {
-		perror("argv calloc");
-		exit(EXIT_FAILURE);
-	}				
+	//fill column titles
+	int i;
+	for (i = 0; i < num_cols; ++i) {
+		columnNames[i] = NULL;
+		if (sqlite3_column_name(stmt, i) != NULL) {
+			columnNames[i] = (char *)sqlite3_column_name(stmt, i);
+		}
+	}	
 
+	//fill values and exec callback for each row
+	char *argv[num_cols]; //values
+	int count = 0;
 	while (sqlite3_step(stmt) != SQLITE_DONE) {
 		int i;
 		for (i = 0; i < num_cols; ++i) {
-			if (sqlite3_column_name(stmt, i) != NULL) {
-				columnNames[i] = (char *)sqlite3_column_name(stmt, i);
-			}
+			argv[i] = NULL;
 			if (sqlite3_column_text(stmt, i) != NULL) {
 				argv[i] = (char *)sqlite3_column_text(stmt, i);
 			}			
@@ -87,9 +96,6 @@ int sqlite_connect_execute_function(const char *String, const char *DataBase, vo
 		}
 		count++;
 	}
-	//free memory
-	free(columnNames);
-	free(argv);
 
 	sqlite3_finalize(stmt);
 	sqlite3_close(db);
