@@ -2,7 +2,7 @@
  * File              : SQLiteConnect.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 04.09.2021
- * Last Modified Date: 20.03.2022
+ * Last Modified Date: 23.04.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
@@ -12,18 +12,97 @@
 #include <string.h>
 #include "sqlite3.h"
 
+#define ERROR(...) ({char ___err[BUFSIZ]; sprintf(___err, __VA_ARGS__); perror(___err);})
+
 //create SQLite database
 int 
-sqlite_connect_create_database(const char *DataBase)
+sqlite_connect_create_database(const char *filename)
 {
 	sqlite3 *db;
-	int err = sqlite3_open_v2(DataBase, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+	int res = sqlite3_open_v2(filename, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
+	if (res) 
+		return res;
 	sqlite3_close(db);
-	return err;
+	return 0;
+}
+
+//return number of rows for SQL request
+int sqlite_connect_execute_function(const char *sql, const char *filename, void *user_data, int (*callback)(void*,int,char**,char**)){
+	int res;
+
+	sqlite3 *db;
+	sqlite3_stmt *stmt;
+	
+	res = sqlite3_open(filename, &db);
+	if (res != SQLITE_OK) {
+		ERROR("SQLite: Failed to open DB: %s: %s\n", filename, sqlite3_errmsg(db));
+		return res;
+	}
+	
+	res = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+	if (res != SQLITE_OK) {
+		ERROR("SQLite: Failed to execute '%s': %s\n", sql, sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return 0;
+	}	
+
+	int num_cols = sqlite3_column_count(stmt); //number of colums
+	char *titles[num_cols]; //names of colums
+	
+	//fill column titles
+	int i;
+	for (i = 0; i < num_cols; ++i) {
+		titles[i] = NULL;
+		if (sqlite3_column_name(stmt, i) != NULL) {
+			titles[i] = (char *)sqlite3_column_name(stmt, i);
+		}
+	}	
+
+	//fill values and exec callback for each row
+	char *argv[num_cols]; //values
+	while (sqlite3_step(stmt) != SQLITE_DONE) {
+		int i;
+		for (i = 0; i < num_cols; ++i) {
+			argv[i] = NULL;
+			if (sqlite3_column_text(stmt, i) != NULL) {
+				argv[i] = (char *)sqlite3_column_text(stmt, i);
+			}			
+		}
+		
+		if (callback) {
+			int c = callback(user_data, num_cols, argv, titles); //run callback
+			if (c) { //callback return non zero - stop execution
+				ERROR("SQLiteExecute interupted with code: %d", c);
+				return c;
+			}
+		}
+	}
+
+	sqlite3_finalize(stmt);
+	sqlite3_close(db);
+
+	return 0;
+}
+
+int sqlite_connect_get_string_callback(void *data, int argc, char **argv, char **titles){
+	char *string=(char*)data;
+	strcpy(string, "");		
+	
+	if (argv[0]!=NULL){
+		strncpy(string, (const char*)argv[0], BUFSIZ - 1); //safe string copy
+		string[BUFSIZ - 1] = '\0';
+	}	
+
+    return -1; //do not call callback again
+}
+
+//return one string from SQL request
+int sqlite_connect_get_string(const char *sql, const char *filename, char * string){
+	return sqlite_connect_execute_function(sql, filename, string, sqlite_connect_get_string_callback);	
 }
 
 //standart callback - print in STDOUT
-int sqlite_callback_print(void *data, int argc,  char **argv, char **columnName){
+int sqlite_callback_print(void *data, int argc,  char **argv, char **titles){
     int i;
 	for (i=0; i< argc; i++)
 		if (argv[i] != NULL){
@@ -36,152 +115,26 @@ int sqlite_callback_print(void *data, int argc,  char **argv, char **columnName)
     return 0;
 }
 
-//return number of rows for SQL request
-int sqlite_connect_execute_function(const char *String, const char *DataBase, void *data,  int (*callback)(void*,int*,int,char**,char**)){
-	int err; //error code
-	sqlite3 *db;
-	sqlite3_stmt *stmt;
-	
-	err = sqlite3_open(DataBase, &db);
-	if (err) {
-		fprintf(stderr, "ERROR. Failed to open DB: %s, with error: %d\n", DataBase, err);
-		return 0;
-	}
-	
-	err = sqlite3_prepare_v2(db, String, -1, &stmt, NULL);
-	if (err) {
-		fprintf(stderr, "ERROR. Failed to execute SQL: %s, with error: %d\n", String, err);
-		sqlite3_close(db);
-		return 0;
-	}	
-
-	int num_cols = sqlite3_column_count(stmt); //number of colums
-	char *columnNames[num_cols]; //names of colums
-	
-	//fill column titles
-	int i;
-	for (i = 0; i < num_cols; ++i) {
-		columnNames[i] = NULL;
-		if (sqlite3_column_name(stmt, i) != NULL) {
-			columnNames[i] = (char *)sqlite3_column_name(stmt, i);
-		}
-	}	
-
-	//fill values and exec callback for each row
-	char *argv[num_cols]; //values
-	int count = 0;
-	while (sqlite3_step(stmt) != SQLITE_DONE) {
-		int i;
-		for (i = 0; i < num_cols; ++i) {
-			argv[i] = NULL;
-			if (sqlite3_column_text(stmt, i) != NULL) {
-				argv[i] = (char *)sqlite3_column_text(stmt, i);
-			}			
-		}
-		
-		if (callback) {
-			int c = callback(data, &count, num_cols, argv, columnNames); //run callback
-			if (c) { //callback return non zero - stop execution
-				fprintf(stderr, "SQLiteExecute interupted with code: %d", c);
-				if (c == -1) {
-					//stop execution with no return
-					break;
-				}
-				else {
-					//stop execute with return of callback
-					count=c;				
-					break;
-				}
-			}
-		}
-		count++;
-	}
-
-	sqlite3_finalize(stmt);
-	sqlite3_close(db);
-
-	return count;
-}
-
-int sqlite_connect_get_string_callback(void *data, int *count, int argc, char **argv, char **columnNames){
-	char *string=(char*)data;
-	strcpy(string, "");		
-	
-	if (argv[0]!=NULL){
-		char buf[BUFSIZ];		
-		strncpy(buf, (const char*)argv[0], sizeof(buf) - 1); //safe string copy
-		buf[sizeof(buf) - 1] = '\0';
-		strcpy(string, buf);
-	}	
-
-    return -1; //do not call callback again
-}
-
-int sqlite_connect_get_row_callback(void *data, int *count, int argc, char **argv, char **columnNames){
-	char **row=(char**)data;
-	int i;
-	for (i = 0; i < argc; ++i) { //for each column in callback
-
-		if (argv[i]==NULL){ //no segmentation falt if arg is NULL
-			argv[i]="";
-		}
-
-		char buf[BUFSIZ];		
-		strncpy(buf, (const char*)argv[i], sizeof(buf) - 1); //safe copy of string (no buffer overload)
-		buf[sizeof(buf) - 1] = '\0';
-
-		char *string = calloc(BUFSIZ, sizeof(char));
-		if (!string) {
-			fprintf(stderr, "ERROR. Cannot allocate memory\n");		
-			return 1;	
-		}					
-	
-		row[i] = string;
-	}
-
-    return argc; //return number of rows
-}
-
-
-//return one string from SQL request
-char *sqlite_connect_get_string(char *SQL, char *DataBase){
-	char *string = calloc(BUFSIZ, sizeof(char));
-	if (!string) {
-		fprintf(stderr, "ERROR. Cannot allocate memory\n");		
-		return NULL;	
-	}					
-	sqlite_connect_execute_function(SQL, DataBase, string, sqlite_connect_get_string_callback);	
-	return string;
-}
-
-//return count of colums in one row from SQL request
-int sqlite_connect_get_row(char *SQL, char *DataBase, char ***row){
-	return sqlite_connect_execute_function(SQL, DataBase, &row, sqlite_connect_get_row_callback);	
-}
-
 //execute SQL without callback
-int sqlite_connect_execute(const char *String, const char *DataBase){
-	
-	const char *filename = DataBase;
-
+int sqlite_connect_execute(const char *sql, const char *filename){
+	int res = 0;	
     sqlite3 *db;
-    int rc = sqlite3_open(filename, &db);
+    res = sqlite3_open(filename, &db);
     
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "SQLExecute Cannot open database %s: %s\n",filename, sqlite3_errmsg(db));
+    if (res != SQLITE_OK) {
+		ERROR("SQLite can't open database %s: %s\n",filename, sqlite3_errmsg(db));
         sqlite3_close(db);
-		return 1;
+		return res;
 	}
 
-	char *sql = (char *)String;	
 	char *err = NULL; 
-		
-	sqlite3_exec(db, sql, sqlite_callback_print, 0, &err); 
+	res = sqlite3_exec(db, sql, sqlite_callback_print, 0, &err); 
 	
 	if (err != NULL){
-		fprintf(stderr, "ERROR SQLExecute: %s\n", err);
-		return 1;
+		ERROR("SQLite returned error: %s\n", err);
+		return res;
 	}
+
     sqlite3_close(db);	
 	return 0;
 }
