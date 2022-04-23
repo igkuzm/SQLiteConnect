@@ -2,14 +2,14 @@
  * File              : test.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 20.03.2022
- * Last Modified Date: 20.03.2022
+ * Last Modified Date: 23.04.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
 #include "SQLiteConnect.h"
 #include <stdio.h>
 
-int callback(void *data, int *count, int argc, char **argv, char **titles){
+int callback(void *data, int argc, char **argv, char **titles){
 	for (int i = 0; i < argc; ++i) {
 		printf("%s: %s\t", titles[i], argv[i]);
 	}
