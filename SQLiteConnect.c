@@ -36,7 +36,7 @@ int sqlite_connect_execute_function(const char *sql, const char *filename, void 
 	
 	res = sqlite3_open(filename, &db);
 	if (res != SQLITE_OK) {
-		ERROR("SQLite: Failed to open %s': %s\n", filename, sqlite3_errmsg(db));
+		ERROR("SQLite: Failed to open '%s': %s\n", filename, sqlite3_errmsg(db));
 		return res;
 	}
 	
@@ -123,7 +123,7 @@ int sqlite_connect_execute(const char *sql, const char *filename){
     res = sqlite3_open(filename, &db);
     
     if (res != SQLITE_OK) {
-		ERROR("SQLite can't open database %s: %s\n",filename, sqlite3_errmsg(db));
+		ERROR("SQLite: Failed to open '%s': %s\n", filename, sqlite3_errmsg(db));
         sqlite3_close(db);
 		return res;
 	}
