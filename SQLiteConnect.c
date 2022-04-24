@@ -2,7 +2,7 @@
  * File              : SQLiteConnect.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 04.09.2021
- * Last Modified Date: 23.04.2022
+ * Last Modified Date: 24.04.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
@@ -21,6 +21,7 @@ sqlite_connect_create_database(const char *filename)
 	sqlite3 *db;
 	int res = sqlite3_open_v2(filename, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, NULL);
 	if (res) 
+		ERROR("SQLite: Failed to create '%s': %s\n", filename, sqlite3_errmsg(db));
 		return res;
 	sqlite3_close(db);
 	return 0;
@@ -35,7 +36,7 @@ int sqlite_connect_execute_function(const char *sql, const char *filename, void 
 	
 	res = sqlite3_open(filename, &db);
 	if (res != SQLITE_OK) {
-		ERROR("SQLite: Failed to open DB: %s: %s\n", filename, sqlite3_errmsg(db));
+		ERROR("SQLite: Failed to open %s': %s\n", filename, sqlite3_errmsg(db));
 		return res;
 	}
 	
