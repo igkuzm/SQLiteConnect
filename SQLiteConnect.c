@@ -2,7 +2,7 @@
  * File              : SQLiteConnect.c
  * Author            : Igor V. Sementsov <ig.kuzm@gmail.com>
  * Date              : 04.09.2021
- * Last Modified Date: 24.04.2022
+ * Last Modified Date: 23.06.2022
  * Last Modified By  : Igor V. Sementsov <ig.kuzm@gmail.com>
  */
 
@@ -74,6 +74,8 @@ int sqlite_connect_execute_function(const char *sql, const char *filename, void 
 			int c = callback(user_data, num_cols, argv, titles); //run callback
 			if (c) { //callback return non zero - stop execution
 				ERROR("SQLiteExecute interupted with code: %d", c);
+				sqlite3_finalize(stmt);
+				sqlite3_close(db);				
 				return c;
 			}
 		}
@@ -124,7 +126,6 @@ int sqlite_connect_execute(const char *sql, const char *filename){
     
     if (res != SQLITE_OK) {
 		ERROR("SQLite: Failed to open '%s': %s\n", filename, sqlite3_errmsg(db));
-        sqlite3_close(db);
 		return res;
 	}
 
@@ -133,6 +134,7 @@ int sqlite_connect_execute(const char *sql, const char *filename){
 	
 	if (err != NULL){
 		ERROR("SQLite returned error: %s\n", err);
+		sqlite3_close(db);	
 		return res;
 	}
 
